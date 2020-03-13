@@ -1,0 +1,30 @@
+mport serial
+class smart_card:
+    def __init__(self,usbPort,baudrate,timeout):
+        print('init smart_card')
+        self.ser =serial.Serial(usbPort,baudrate,timeout=timeout)
+        self.ser.flushInput()
+    def read(self):
+        while True:
+            try:
+                ser_bytes = self.ser.readline()
+                ascii_txt = list(ser_bytes)
+                if(len(ascii_txt) > 0):
+                    print("Reading Identity Card")
+                    res = ""
+                    result = []
+                    for val in ascii_txt:
+                        if(val != 13):
+                            if(val>=161):
+                                #เธ–เน?เธฒเธญเธขเธฒเธ?เน?เธชเธ”เธ?เธ เธฒเธฉเธฒเน?เธ—เธขเธ•เน?เธญเธ? + acsii เน€เธ?เธดเน?เธก 3424 เน?เธกเน?เธ?เธฑเน?เธ?เธ?เธฐเน€เธ?เน?เธ?เธ เธฒเธฉเธฒเธ•เน?เธฒเธ?เธ”เธฒเธง
+                                res = res + "{0:c}".format(val+3424)
+                            else:
+                                res = res + "{0:c}".format(val)
+                        else:
+                            result.append(res)
+                            res = ""
+                    if(len(result) > 1):
+                        if(result[0] != 'REMOVE'):
+                            return result
+            except:
+                return ['Error !']
