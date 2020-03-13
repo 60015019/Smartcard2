@@ -1,0 +1,69 @@
+from read_smart_card_controller import smart_card
+from mysql_controller import mysql_controller
+from mikrotik_controller import mikrotik
+import _thread
+import time
+import os
+import ntplib
+
+class main_class:
+    def __init__(self):
+        try:
+            client = ntplib.NTPClient()
+            response = client.request('pool.ntp.org')
+            os.system('sudo date ' + time.strftime('%m%d%H%M%Y.%S',time.localtime(response.tx_time)))
+        except:
+            print("Please Sync Internet For set current time")
+        self.passport = smart_card('/dev/ttyUSB0',115200,10)
+        self.MySQL = mysql_controller('localhost','mikrotik2563','1234567899','mikrotik')
+        self.mikrotik = mikrotik('192.168.10.1','mikrotik2563','1234567899',8729)
+        _thread.start_new_thread(self.deleteUserOverOneDay,())
+        
+        
+    def deleteUserOverOneDay(self):
+        while True:
+            try:
+                print('Checking for delete coupon over one day')
+                result = self.MySQL.queryUserBeforeCurrentDate()
+                print(result)
+                if len(result) > 0:
+                    self.mikrotik.removeCoupon(result)
+                    print(self.MySQL.unActiveUser(result))
+            except:
+                print("Error Delete coupons")
+            time.sleep(300)
+    
+    def execute(self):
+        while True:
+           time.sleep(0.1)
+           
+           identity = self.passport.read()
+           resultIdentity = self.MySQL.findIdentity(identity[0])
+           
+           if len(resultIdentity) == 0:
+               print(self.MySQL.addIdentity(identity))
+               statusAddCoupon = False
+               coupon = []
+               while (not statusAddCoupon):
+                   coupon = self.mikrotik.coupon_generator()
+                   if(self.mikrotik.addCoupons(coupon)):
+                       statusAddCoupon = True
+                   else:
+                       statusAddCoupon = False
+               print(self.MySQL.recordCoupon(identity[0],coupon))
+               print('Add coupon success',coupon)
+           else:
+               print("Found ID "+identity[0])
+               statusAddCoupon = False
+               coupon = []
+               while (not statusAddCoupon):
+                   coupon = self.mikrotik.coupon_generator()
+                   if(self.mikrotik.addCoupons(coupon)):
+                       statusAddCoupon = True
+                   else:
+                       statusAddCoupon = False
+               print(self.MySQL.recordCoupon(identity[0],coupon))
+               print('Add coupon success',coupon)
+               
+main = main_class()
+main.execute()
